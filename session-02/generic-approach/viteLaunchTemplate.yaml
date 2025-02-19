@@ -1,0 +1,65 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "Creates a parameterized Launch Template and uses it to start a single EC2 instance"
+
+Parameters:
+  SubnetId:
+    Type: "AWS::EC2::Subnet::Id"
+    Description: "Select the subnet where the EC2 instance will be launched"
+
+  UserDataBase64:
+    Type: "String"
+    Description: "Base64 encoded user data script"
+
+Resources:
+  MyLaunchTemplate:
+    Type: "AWS::EC2::LaunchTemplate"
+    Properties:
+      LaunchTemplateName: "viteLaunchTemplate"
+      VersionDescription: "Initial version"
+      LaunchTemplateData:
+        ImageId: "ami-0c8db01b2e8e5298d"  # Change to your AMI ID
+        InstanceType: "t2.micro"
+        KeyName: "AWS Workshop SSH key"  # Change to your key pair
+        SecurityGroupIds:
+          - "sg-0ba3c421112117e18"  # Change to your security group
+        UserData: 
+          Fn::Base64: |
+            #!/bin/bash
+            # Install Git
+            yum install -y git
+            # Clone your repository
+            git clone https://github.com/ShayanBits/vue-training-hour.git /tmp/user-data
+            # Run your script
+            bash /tmp/user-data/generic-approach/userData.sh
+        TagSpecifications:
+          - ResourceType: "instance"
+            Tags:
+              - Key: "Name"
+                Value: "aws-workshop"
+
+  MyEC2Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      LaunchTemplate:
+        LaunchTemplateId: 
+          Ref: MyLaunchTemplate
+        Version: 
+          "Fn::GetAtt": ["MyLaunchTemplate", "LatestVersionNumber"]
+      SubnetId: 
+        Ref: SubnetId
+      Monitoring: true
+      EbsOptimized: true
+
+Outputs:
+  InstanceId:
+    Description: "EC2 Instance ID"
+    Value: !Ref MyEC2Instance
+  LaunchTemplateId:
+    Description: "Launch Template ID"
+    Value: !Ref MyLaunchTemplate
+  SelectedSubnet:
+    Description: "The subnet used for the instance"
+    Value: !Ref SubnetId
+  Region:
+    Description: "AWS Region where the instance is deployed"
+    Value: !Ref AWS::Region
