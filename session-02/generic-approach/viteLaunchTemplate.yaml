@@ -1,9 +1,9 @@
-AWSTemplateFormatVersion: "2010-09-09"
+AWSTemplateFormatVersion: "2010-09-09" # stays always the same. last version of cloudformation yaml structure.
 Description: "Creates a parameterized Launch Template and uses it to start a single EC2 instance"
 
 Parameters:
   SubnetId:
-    Type: "AWS::EC2::Subnet::Id"
+    Type: "AWS::EC2::Subnet::Id" # offers accisible AZs as drop down when creating with the AWS console
     Description: "Select the subnet where the EC2 instance will be launched"
 
   UserDataBase64:
@@ -14,28 +14,30 @@ Resources:
   MyLaunchTemplate:
     Type: "AWS::EC2::LaunchTemplate"
     Properties:
-      LaunchTemplateName: "viteLaunchTemplate"
+      LaunchTemplateName: "aws-workshop-viteLaunchTemplate"
       VersionDescription: "Initial version"
       LaunchTemplateData:
-        ImageId: "ami-0c8db01b2e8e5298d"  # Change to your AMI ID
+        ImageId: "ami-0c8db01b2e8e5298d"  # currently Amazon Linux 2023 AMI
         InstanceType: "t2.micro"
-        KeyName: "AWS Workshop SSH key"  # Change to your key pair
+        KeyName: "AWS Workshop SSH key" 
         SecurityGroupIds:
-          - "sg-0ba3c421112117e18"  # Change to your security group
+          - "sg-0ba3c421112117e18"  # launch-wizard-2
         UserData: 
           Fn::Base64: |
             #!/bin/bash
             # Install Git
             yum install -y git
             # Clone your repository
-            git clone https://github.com/ShayanBits/vue-training-hour.git /tmp/user-data
-            # Run your script
-            bash /tmp/user-data/generic-approach/userData.sh
+            cd /home/ec2-user || cd /home/ubuntu
+            # clone the dynamic UserData script
+            git clone https://github.com/ShayanBits/aws-worksop.git ./tmp/user-data
+            # Run the dynamic UserData script
+            bash tmp/user-data/session-02/generic-approach/userData.sh
         TagSpecifications:
           - ResourceType: "instance"
             Tags:
               - Key: "Name"
-                Value: "aws-workshop"
+                Value: "aws-workshop-cf-generated"
 
   MyEC2Instance:
     Type: AWS::EC2::Instance
