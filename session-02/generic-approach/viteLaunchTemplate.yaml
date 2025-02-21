@@ -2,19 +2,21 @@ AWSTemplateFormatVersion: "2010-09-09" # stays always the same. last version of 
 Description: "Creates a parameterized Launch Template and uses it to start a single EC2 instance"
 
 Parameters:
-  SubnetId:
-    Type: "AWS::EC2::Subnet::Id" # offers accisible AZs as drop down when creating with the AWS console
-    Description: "Select the subnet where the EC2 instance will be launched"
-
-  UserDataBase64:
+  LaunchTemplateName:
     Type: "String"
-    Description: "Base64 encoded user data script"
+    Default: "aws-workshop-viteLaunchTemplate"  # Default must be a static string, cannot use Fn::Sub
+    Description: "Unique launch template name to prevent conflicts"
+
+  SubnetId:
+    Type: "AWS::EC2::Subnet::Id" # offers accessible AZs as a drop-down when creating with the AWS console
+    Description: "Select the subnet where the EC2 instance will be launched"
 
 Resources:
   MyLaunchTemplate:
     Type: "AWS::EC2::LaunchTemplate"
     Properties:
-      LaunchTemplateName: "aws-workshop-viteLaunchTemplate"
+      LaunchTemplateName: 
+        Fn::Sub: "${LaunchTemplateName}-${AWS::StackName}"  # Dynamic naming applied here instead
       VersionDescription: "Initial version"
       LaunchTemplateData:
         ImageId: "ami-0c8db01b2e8e5298d"  # currently Amazon Linux 2023 AMI
