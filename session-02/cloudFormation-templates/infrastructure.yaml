@@ -1,0 +1,88 @@
+AWSTemplateFormatVersion: "2010-09-09" # stays always the same. last version of cloudformation yaml structure.
+Description: "Creates a parameterized Launch Template, starts an EC2 instance, and provisions an S3 bucket"
+
+Parameters:
+  LaunchTemplateName:
+    Type: "String"
+    Default: "aws-workshop-viteLaunchTemplate2"  # Default must be a static string, cannot use Fn::Sub
+    Description: "Unique launch template name to prevent conflicts"
+
+  SubnetId:
+    Type: "AWS::EC2::Subnet::Id" # offers accessible AZs as a drop-down when creating with the AWS console
+    Default: "subnet-08b2d767d58855077"
+    Description: "Select the subnet where the EC2 instance will be launched"
+
+Resources:
+  # -------------------------------
+  # S3 Bucket
+  # -------------------------------
+  MyS3Bucket:
+    Type: "AWS::S3::Bucket"
+    Properties:
+      BucketName: !Sub "aws-workshop-bucket-${AWS::AccountId}-${AWS::Region}"
+      AccessControl: Private  # You can set this to PublicRead, PublicReadWrite, etc.
+      Tags:
+        - Key: "Name"
+          Value: "aws-workshop-bucket-edited"
+
+  # -------------------------------
+  # EC2 Launch Template
+  # -------------------------------
+  MyLaunchTemplate:
+    Type: "AWS::EC2::LaunchTemplate"
+    Properties:
+      LaunchTemplateName: 
+        Fn::Sub: "${LaunchTemplateName}-${AWS::StackName}"  # Dynamic naming applied here instead
+      VersionDescription: "Initial version"
+      LaunchTemplateData:
+        ImageId: "ami-0c8db01b2e8e5298d"  # currently Amazon Linux 2023 AMI
+        InstanceType: "t2.micro"
+        KeyName: "AWS Workshop SSH key" 
+        SecurityGroupIds:
+          - "sg-0ba3c421112117e18"  # launch-wizard-2
+        UserData: 
+          Fn::Base64: |
+            #!/bin/bash
+            # Install Git
+            yum install -y git
+            # Clone your repository
+            cd /home/ec2-user || cd /home/ubuntu
+            # clone the dynamic UserData script
+            git clone https://github.com/ShayanBits/aws-worksop.git ./tmp/user-data
+            # Run the dynamic UserData script
+            bash tmp/user-data/session-02/generic-approach-with-s3/userData.sh
+        TagSpecifications:
+          - ResourceType: "instance"
+            Tags:
+              - Key: "Name"
+                Value: "aws-workshop-cf-generated"
+
+  MyEC2Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      LaunchTemplate:
+        LaunchTemplateId: 
+          Ref: MyLaunchTemplate
+        Version: 
+          "Fn::GetAtt": ["MyLaunchTemplate", "LatestVersionNumber"]
+      SubnetId: 
+        Ref: SubnetId
+      Monitoring: true
+      EbsOptimized: true
+
+Outputs:
+  InstanceId:
+    Description: "EC2 Instance ID"
+    Value: !Ref MyEC2Instance
+  LaunchTemplateId:
+    Description: "Launch Template ID"
+    Value: !Ref MyLaunchTemplate
+  SelectedSubnet:
+    Description: "The subnet used for the instance"
+    Value: !Ref SubnetId
+  Region:
+    Description: "AWS Region where the instance is deployed"
+    Value: !Ref AWS::Region
+  S3BucketName:
+    Description: "Name of the S3 bucket"
+    Value: !Ref MyS3Bucket
